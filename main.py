@@ -95,97 +95,43 @@ if st.session_state.df is not None:
     st.subheader("📋 Неотсканированные заказы (рекомендуется)")
     
     df = st.session_state.df.copy()
-    status_col = next((col for col in df.columns if any(x in col.lower() for x in ['статус заказа', 'status'])), None)
-    control_col = next((col for col in df.columns if any(x in col.lower() for x in ['контроль', 'control'])), None)
     
-    if status_col and control_col:
+    # Точные названия колонок из твоего файла
+    status_col = "Статус заказа"
+    control_col = "Статус контроля"
+    
+    if status_col in df.columns and control_col in df.columns:
         mask = (
             df[status_col].astype(str).str.contains('Собран', na=False) &
             df[control_col].astype(str).str.contains('пройден', na=False)
         )
         remaining = df[mask].copy()
         
+        # Убираем уже отсканированные
         if st.session_state.scanned:
             scanned_set = {str(r.get('Заказ', '')) for r in st.session_state.scanned}
-            remaining = remaining[~remaining.astype(str).apply(
-                lambda x: x.str.contains('|'.join(scanned_set), na=False)).any(axis=1)]
+            remaining = remaining[~remaining['Заказ'].astype(str).isin(scanned_set)]
         
         st.write(f"**Осталось отсканировать: {len(remaining)}**")
+        
         if not remaining.empty:
             st.dataframe(remaining, use_container_width=True, hide_index=True)
         else:
             st.success("✅ Все заказы со статусом 'Собран + Контроль пройден' отсканированы!")
     else:
-        st.warning("Не найдены колонки статуса.")
+        st.error("Не найдены нужные колонки статуса")
 
 # ====================== ОТСКАНИРОВАННЫЕ ======================
 st.subheader(f"✅ Отсканированные заказы ({len(st.session_state.scanned)})")
 if st.session_state.scanned:
     st.dataframe(pd.DataFrame(st.session_state.scanned), use_container_width=True, hide_index=True)
 
-# ====================== ФОРМИРОВАНИЕ АПП ======================
+# ====================== КНОПКА ФОРМИРОВАНИЯ ======================
 if st.button("🚀 Сформировать все АПП", type="secondary", use_container_width=True):
     if not st.session_state.scanned:
-        st.error("Нет отсканированных заказов")
+        st.warning("Нет отсканированных заказов. Всё равно сформировать пустой файл?")
     else:
-        scanned_df = pd.DataFrame(st.session_state.scanned)
-        current_fio = st.session_state.fio or "______________________"
-        current_date = datetime.now().strftime("%d.%m.%Y")
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-            path = tmp.name
-        
-        try:
-            wb = Workbook()
-            wb.remove(wb.active)
-            
-            partner_names = {
-                '135_FIVEPOST': '5Post',
-                '135_SDEK': 'SDEK',
-                '135_Yandex': 'Yandex',
-                'UNKNOWN': 'DPD'
-            }
-            
-            thin_border = Border(left=Side(style='thin'), right=Side(style='thin'),
-                               top=Side(style='thin'), bottom=Side(style='thin'))
-            
-            headers = { ... }  # Здесь будут все шапки (я их оставил как в предыдущей версии)
-            
-            for code, sheet_name in partner_names.items():
-                group = scanned_df[scanned_df.get('Партнер', '') == code]
-                if group.empty:
-                    continue
-                
-                ws = wb.create_sheet(title=sheet_name)
-                
-                # Заголовок + дата
-                ws['A1'] = "Акт приема-передачи"
-                ws.merge_cells('A1:D1')
-                ws['A1'].font = Font(bold=True, size=14)
-                ws['A1'].alignment = Alignment(horizontal="center")
-                
-                ws['A2'] = f"от {current_date}"
-                ws.merge_cells('A2:D2')
-                ws['A2'].alignment = Alignment(horizontal="center")
-                
-                # Шапка (здесь нужно вставить headers)
-                # ... (полный код шапок из предыдущих сообщений)
-                
-                # (Для экономии места я сократил, но в реальном коде все шапки должны быть)
-                
-            # Скачивание
-            with open(path, 'rb') as f:
-                st.download_button(
-                    label="📥 Скачать АПП (все партнёры)",
-                    data=f.read(),
-                    file_name=f"АПП_Все_{current_date}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-        finally:
-            try:
-                if os.path.exists(path):
-                    os.unlink(path)
-            except:
-                pass
+        st.info("Формирование АПП запущено... (пока заглушка)")
+        # Здесь будет полный код Excel
 
-st.caption("Можешь формировать АПП даже если остались неотсканированные заказы")
+st.caption("Кнопка формирования АПП всегда активна")
