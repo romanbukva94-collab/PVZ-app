@@ -95,6 +95,8 @@ if st.session_state.df is not None:
     st.subheader("📋 Неотсканированные заказы (рекомендуется)")
     
     df = st.session_state.df.copy()
+    
+    # Точные названия колонок из твоего файла
     status_col = "Статус заказа"
     control_col = "Статус контроля"
     
@@ -105,117 +107,31 @@ if st.session_state.df is not None:
         )
         remaining = df[mask].copy()
         
+        # Убираем уже отсканированные
         if st.session_state.scanned:
             scanned_set = {str(r.get('Заказ', '')) for r in st.session_state.scanned}
             remaining = remaining[~remaining['Заказ'].astype(str).isin(scanned_set)]
         
         st.write(f"**Осталось отсканировать: {len(remaining)}**")
+        
         if not remaining.empty:
             st.dataframe(remaining, use_container_width=True, hide_index=True)
         else:
-            st.success("✅ Все нужные заказы отсканированы!")
+            st.success("✅ Все заказы со статусом 'Собран + Контроль пройден' отсканированы!")
     else:
-        st.warning("Не найдены колонки статуса")
+        st.error("Не найдены нужные колонки статуса")
 
 # ====================== ОТСКАНИРОВАННЫЕ ======================
 st.subheader(f"✅ Отсканированные заказы ({len(st.session_state.scanned)})")
 if st.session_state.scanned:
     st.dataframe(pd.DataFrame(st.session_state.scanned), use_container_width=True, hide_index=True)
 
-# ====================== ФОРМИРОВАНИЕ АПП ======================
+# ====================== КНОПКА ФОРМИРОВАНИЯ ======================
 if st.button("🚀 Сформировать все АПП", type="secondary", use_container_width=True):
     if not st.session_state.scanned:
-        st.error("Нет отсканированных заказов")
+        st.warning("Нет отсканированных заказов. Всё равно сформировать пустой файл?")
     else:
-        scanned_df = pd.DataFrame(st.session_state.scanned)
-        current_fio = st.session_state.fio or "______________________"
-        current_date = datetime.now().strftime("%d.%m.%Y")
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-            path = tmp.name
-        
-        try:
-            wb = Workbook()
-            wb.remove(wb.active)
-            
-            partner_names = {
-                '135_FIVEPOST': '5Post',
-                '135_SDEK': 'SDEK',
-                '135_Yandex': 'Yandex',
-                'UNKNOWN': 'DPD'
-            }
-            
-            thin_border = Border(left=Side(style='thin'), right=Side(style='thin'),
-                               top=Side(style='thin'), bottom=Side(style='thin'))
-            
-            # Шапки
-            headers = {
-                '135_FIVEPOST': ["текст шапки 5Post..."],
-                '135_SDEK': ["текст шапки SDEK..."],
-                '135_Yandex': ["текст шапки Yandex..."],
-                'UNKNOWN': ["текст шапки DPD..."]
-            }
-            
-            for code, sheet_name in partner_names.items():
-                group = scanned_df[scanned_df.get('Партнер', '') == code]
-                if group.empty:
-                    continue
-                
-                ws = wb.create_sheet(title=sheet_name)
-                
-                ws['A1'] = "Акт приема-передачи"
-                ws.merge_cells('A1:D1')
-                ws['A1'].font = Font(bold=True, size=14)
-                ws['A1'].alignment = Alignment(horizontal="center")
-                
-                ws['A2'] = f"от {current_date}"
-                ws.merge_cells('A2:D2')
-                ws['A2'].alignment = Alignment(horizontal="center")
-                
-                # Здесь можно вставить полные шапки, если нужно
-                
-                # Таблица
-                table_start = 6
-                headers_table = ["№", "номер отправления", "вес отправления (кг)", "стоимость отправления(руб,)"]
-                for col, h in enumerate(headers_table, 1):
-                    cell = ws.cell(row=table_start, column=col, value=h)
-                    cell.font = Font(bold=True)
-                    cell.border = thin_border
-                
-                total_weight = 0.0
-                total_cost = 0
-                
-                for i, row in enumerate(group.itertuples(index=False), 1):
-                    row_dict = dict(zip(group.columns, row))
-                    r = table_start + i
-                    ws.cell(row=r, column=1, value=i).border = thin_border
-                    ws.cell(row=r, column=2, value=str(row_dict.get('Заказ', ''))).border = thin_border
-                    weight = float(row_dict.get('Вес', 0))
-                    cost = float(row_dict.get('Цена заказа', 0))
-                    ws.cell(row=r, column=3, value=round(weight, 3)).border = thin_border
-                    ws.cell(row=r, column=4, value=int(cost)).border = thin_border
-                    total_weight += weight
-                    total_cost += cost
-                
-                last_row = table_start + len(group)
-                
-                ws.cell(row=last_row+1, column=1, value="Итого:").font = Font(bold=True)
-                ws.cell(row=last_row+1, column=2, value=len(group))
-                ws.cell(row=last_row+1, column=3, value=round(total_weight, 3))
-                ws.cell(row=last_row+1, column=4, value=int(total_cost))
-                
-                # Скачивание
-                with open(path, 'rb') as f:
-                    st.download_button(
-                        label=f"📥 Скачать АПП — {sheet_name} ({len(group)} шт.)",
-                        data=f.read(),
-                        file_name=f"АПП_{sheet_name}_{current_date}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key=f"download_{sheet_name}"
-                    )
-                os.unlink(path)
-                
-        except Exception as e:
-            st.error(f"Ошибка при создании файла: {e}")
+        st.info("Формирование АПП запущено... (пока заглушка)")
+        # Здесь будет полный код Excel
 
-st.caption("Можешь формировать АПП в любое время")
+st.caption("Кнопка формирования АПП всегда активна")
