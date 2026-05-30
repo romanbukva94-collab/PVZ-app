@@ -65,7 +65,7 @@ with col1:
                 
                 df = st.session_state.df
                 found = False
-                order_columns = [col for col in df.columns if any(w in col.lower() for w in ['заказ', 'order', 'номер'])]
+                order_columns = [col for col in df.columns if any(word in col.lower() for word in ['заказ', 'order', 'номер'])]
                 if not order_columns:
                     order_columns = df.columns
 
@@ -90,7 +90,7 @@ with col2:
 
 # ====================== НЕОТСКАНИРОВАННЫЕ ======================
 if st.session_state.df is not None:
-    st.subheader("📋 Неотсканированные заказы")
+    st.subheader("📋 Неотсканированные заказы (рекомендуется)")
     df = st.session_state.df.copy()
     if "Статус заказа" in df.columns and "Статус контроля" in df.columns:
         mask = (
@@ -135,7 +135,7 @@ if st.button("🚀 Сформировать все АПП", type="secondary", us
                 'UNKNOWN': 'DPD'
             }
             
-            # ==================== ШАПКИ ====================
+            # Полные шапки
             headers = {
                 '135_FIVEPOST': [
                     'ООО "ЛЕ МОНЛИД" (магазин по адресу Лемана про Московское шоссе 14 лит, А), в лице Директора направления доставки до клиента в омниканальном формате Мамонова Дмитрия Сергеевича,  действующего на основании Доверенности № 00/21/62 от 08.04.2021 г., именуемый(-ый) в дальнейшем Заказчик, и',
@@ -166,7 +166,7 @@ if st.button("🚀 Сформировать все АПП", type="secondary", us
                 
                 ws = wb.create_sheet(title=sheet_name)
                 
-                # Шапка
+                # Заголовок
                 ws['A1'] = "Акт приема-передачи"
                 ws.merge_cells('A1:D1')
                 ws['A1'].font = Font(bold=True, size=14)
@@ -176,6 +176,7 @@ if st.button("🚀 Сформировать все АПП", type="secondary", us
                 ws.merge_cells('A2:D2')
                 ws['A2'].alignment = Alignment(horizontal="center")
                 
+                # Шапка
                 row = 4
                 for line in headers.get(code, headers['UNKNOWN']):
                     ws[f'A{row}'] = line
@@ -185,7 +186,8 @@ if st.button("🚀 Сформировать все АПП", type="secondary", us
                 
                 # Таблица
                 table_start = row + 2
-                for col, text in enumerate(["№", "номер отправления", "вес отправления (кг)", "стоимость отправления(руб,)"], 1):
+                table_headers = ["№", "номер отправления", "вес отправления (кг)", "стоимость отправления(руб,)"]
+                for col, text in enumerate(table_headers, 1):
                     cell = ws.cell(row=table_start, column=col, value=text)
                     cell.font = Font(bold=True)
                 
@@ -205,11 +207,24 @@ if st.button("🚀 Сформировать все АПП", type="secondary", us
                     total_cost += c
                 
                 # Итого
-                last = table_start + len(group)
-                ws.cell(row=last+1, column=1, value="Итого:").font = Font(bold=True)
-                ws.cell(row=last+1, column=2, value=len(group))
-                ws.cell(row=last+1, column=3, value=round(total_weight, 3))
-                ws.cell(row=last+1, column=4, value=int(total_cost))
+                last_row = table_start + len(group)
+                ws.cell(row=last_row+1, column=1, value="Итого:").font = Font(bold=True)
+                ws.cell(row=last_row+1, column=2, value=len(group))
+                ws.cell(row=last_row+1, column=3, value=round(total_weight, 3))
+                ws.cell(row=last_row+1, column=4, value=int(total_cost))
+                
+                # Подписи
+                sign_row = last_row + 5
+                ws.cell(row=sign_row, column=1, value='Сдал: ООО "ЛЕ МОНЛИД"')
+                ws.cell(row=sign_row, column=4, value=f'ПРИНЯЛ: {sheet_name}')
+                
+                ws.cell(row=sign_row+2, column=1, value=current_fio)
+                ws.cell(row=sign_row+2, column=4, value="_________________")
+                
+                ws.cell(row=sign_row+5, column=1, value="подпись")
+                ws.cell(row=sign_row+5, column=4, value="подпись")
+                
+                ws.cell(row=sign_row+7, column=1, value="М.П.")
             
             wb.save(path)
             
@@ -223,7 +238,7 @@ if st.button("🚀 Сформировать все АПП", type="secondary", us
             st.success("✅ АПП успешно сформирован!")
             
         except Exception as e:
-            st.error(f"Ошибка: {e}")
+            st.error(f"Ошибка при создании файла: {e}")
         finally:
             try:
                 if os.path.exists(path):
@@ -231,28 +246,7 @@ if st.button("🚀 Сформировать все АПП", type="secondary", us
             except:
                 pass
 
-st.caption("Дата и шапки на месте • Один файл")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+st.caption("Один файл • Полные шапки • Дата")
 
 
 
